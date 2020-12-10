@@ -1,12 +1,12 @@
 provider "ibm" {
-  generation = 1
+  generation = 2
 }
 
 #*********************************************
 # Resource group creation
 #*********************************************
 resource "ibm_resource_group" "demo_group1" {
-  name     = "prod"
+  name     = var.rg_name
 }
 
 #*********************************************
@@ -32,7 +32,7 @@ resource "ibm_kp_key" "cos_encrypt" {
 resource "ibm_cis" "demo_web_domain" {
   name              = "web_domain"
   resource_group_id = ibm_resource_group.demo_group1.id
-  plan              = "standard"
+  plan              = "enterprise-usage"
   location          = "global"
 }
 
@@ -61,8 +61,16 @@ resource "ibm_resource_instance" "cos_instance" {
   location          = "global"
 }
 
-resource "ibm_cos_bucket" "standard-ams03" {
-  bucket_name          = "terraform-demo-bucket-m98hji6hgk89067ga"
+resource "ibm_cos_bucket" "demo_bucket01" {
+  bucket_name          = "sch001_demo_bucket01"
+  resource_instance_id = ibm_resource_instance.cos_instance.id
+  region_location      = "us-south"
+  storage_class        = "standard"
+  key_protect          = ibm_kp_key.cos_encrypt.id
+}
+
+resource "ibm_cos_bucket" "demo_bucket02" {
+  bucket_name          = "sch002_demo_bucket02"
   resource_instance_id = ibm_resource_instance.cos_instance.id
   region_location      = "us-south"
   storage_class        = "standard"
@@ -111,12 +119,12 @@ resource "ibm_iam_service_id" "serviceID" {
 }
 
 resource "ibm_iam_service_policy" "policy" {
-  iam_service_id = "${ibm_iam_service_id.serviceID.id}"
+  iam_service_id = ibm_iam_service_id.serviceID.id
   roles        = ["Writer"]
 
   resources { 
     service = "cloud-object-storage"
-    resource_group_id = "demo_group1" 
+    resource_group_id = ibm_resource_group.demo_group1.id
   }
 }
 
@@ -153,6 +161,11 @@ resource "ibm_container_vpc_cluster" "cluster" {
     subnet_id = ibm_is_subnet.subnet1.id
     name      = "us-south-1"
   }
+  
+  tags = [
+    "cart_application",
+    "v0.1.0",
+  ]
 }
 
 resource "ibm_container_bind_service" "bind_service" {
